@@ -6,24 +6,21 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
-// question struct stores a single question and its corresponding answer.
 type question struct {
 	q, a string
 }
 
 type score int
 
-// check handles a potential error.
-// It stops execution of the program ("panics") if an error has happened.
 func check(e error) {
 	if e != nil {
 		panic(e)
 	}
 }
 
-// questions reads in questions and corresponding answers from a CSV file into a slice of question structs.
 func questions() []question {
 	f, err := os.Open("quiz-questions.csv")
 	check(err)
@@ -37,12 +34,12 @@ func questions() []question {
 	return questions
 }
 
-// ask asks a question and returns an updated score depending on the answer.
-func ask(s score, question question) score {
+// 4a: ask 现在接收一个 result channel，用于把分数传回 main
+func ask(s score, question question, result chan score) {
 	fmt.Println(question.q)
 	scanner := bufio.NewScanner(os.Stdin)
 	fmt.Print("Enter answer: ")
-	scanner.Scan()
+	scanner.Scan() // 这里会阻塞，等待用户输入
 	text := scanner.Text()
 	if strings.Compare(text, question.a) == 0 {
 		fmt.Println("Correct!")
@@ -50,14 +47,29 @@ func ask(s score, question question) score {
 	} else {
 		fmt.Println("Incorrect :-(")
 	}
-	return s
+	result <- s // 将更新后的分数发送回 main
 }
 
 func main() {
 	s := score(0)
 	qs := questions()
+	result := make(chan score)
+	timer := time.After(5 * time.Second) // 创建一个 5 秒的定时器
+
 	for _, q := range qs {
-		s = ask(s, q)
+		go ask(s, q, result) // 启动 goroutine 等待用户输入
+
+		select {
+		case newScore := <-result:
+			s = newScore // 用户回答了，更新分数，准备下一题
+		case <-timer:
+			// 5秒时间到，立即终止
+			fmt.Println("\nTime's up!")
+			fmt.Println("Final score", s)
+			return // 直接退出 main，不等待当前 ask goroutine
+		}
 	}
+
+	// 如果所有题目都在 5 秒内回答完了，也会走到这里
 	fmt.Println("Final score", s)
 }
