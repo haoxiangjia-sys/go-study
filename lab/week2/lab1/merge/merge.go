@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"runtime/trace"
+	"sync"
 )
 
 // merge takes two sorted sub-arrays from slice and sorts them.
@@ -42,9 +44,52 @@ func mergeSort(slice []int32) {
 	}
 }
 
-// TODO: Parallel merge sort.
+//// TODO: Parallel merge sort.
+//func parallelMergeSort(slice []int32) {
+//	//1如果 len(slice) <= 1，直接返回。
+//	if len(slice) <= 1 {
+//		return
+//	}
+//	//2找到中点 middle。
+//	middle := len(slice) / 2
+//	//3启动两个 goroutine：
+//	var wg sync.WaitGroup
+//	wg.Add(2)
+//	//4一个排序左半段 slice[:middle]
+//	go func() {
+//		defer wg.Done()
+//		parallelMergeSort(slice[:middle])
+//	}()
+//	//5一个排序右半段 slice[middle:]
+//	go func() {
+//		defer wg.Done()
+//		parallelMergeSort(slice[middle:])
+//	}()
+//	//6等待两个 goroutine 都完成。
+//	wg.Wait()
+//	//7调用 merge(slice, middle) 合并。
+//	merge(slice, middle)
+//}
+//改进：每次分割只创建一个新 goroutine
+//让当前 goroutine 继续处理右半区，只把左半区交给新 goroutine：
+
 func parallelMergeSort(slice []int32) {
-	mergeSort(slice)
+	if len(slice) <= 1 {
+		return
+	}
+	middle := len(slice) / 2
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+		parallelMergeSort(slice[:middle]) // 新 goroutine 处理左半
+	}()
+
+	parallelMergeSort(slice[middle:]) // 当前 goroutine 处理右半
+	wg.Wait()
+	merge(slice, middle)
 }
 
 // main starts tracing and in parallel sorts a small slice.
@@ -70,4 +115,5 @@ func main() {
 	}
 
 	parallelMergeSort(slice)
+	fmt.Println(slice)
 }
