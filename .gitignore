@@ -9,3 +9,8 @@ Thumbs.db
 *.log
 *.png
 *.csv
+
+# build outputs and backup copies
+*.orig
+lab/week5/concurrency-lab-3-master/hello/hello
+lab/week5/concurrency-lab-3-master/quiz/quiz
